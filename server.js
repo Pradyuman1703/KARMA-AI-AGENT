@@ -28,7 +28,9 @@ app.post("/api/chat", async (req, res) => {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://karma-ai.onrender.com",
+                "X-Title": "Karma AI Agent"
             },
             body: JSON.stringify({
                 model: "deepseek/deepseek-chat",
@@ -43,20 +45,29 @@ app.post("/api/chat", async (req, res) => {
 
         const data = await response.json();
 
-        if (data.choices && data.choices.length > 0) {
-            res.json({
-                reply: data.choices[0].message.content
-            });
-        } else {
-            res.json({
-                reply: "No response from AI."
+        // Print full response in Render logs
+        console.log("OpenRouter response:", data);
+
+        if (data.error) {
+            return res.json({
+                reply: "AI Error: " + data.error.message
             });
         }
 
-    } catch (error) {
-        console.error(error);
+        if (!data.choices || data.choices.length === 0) {
+            return res.json({
+                reply: "AI returned empty response."
+            });
+        }
+
         res.json({
-            reply: "Error connecting to AI service."
+            reply: data.choices[0].message.content
+        });
+
+    } catch (error) {
+        console.error("Server error:", error);
+        res.json({
+            reply: "Server error while contacting AI."
         });
     }
 });
