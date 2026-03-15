@@ -6,6 +6,7 @@
 // ============================================================
 const express = require("express");
 const cors = require("cors");
+const fetch = require("node-fetch");
 const path = require("path");
 require("dotenv").config();
 
@@ -15,16 +16,57 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
+// AI chat route
 app.post("/api/chat", async (req, res) => {
-    res.json({ reply: "Server working!" });
+    try {
+        const userMessage = req.body.message;
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "deepseek/deepseek-chat",
+                messages: [
+                    {
+                        role: "user",
+                        content: userMessage
+                    }
+                ]
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.choices && data.choices.length > 0) {
+            res.json({
+                reply: data.choices[0].message.content
+            });
+        } else {
+            res.json({
+                reply: "No response from AI."
+            });
+        }
+
+    } catch (error) {
+        console.error(error);
+        res.json({
+            reply: "Error connecting to AI service."
+        });
+    }
 });
 
+// Load website
 app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+// Start server
 app.listen(PORT, () => {
-    console.log("Server running on port " + PORT);
+    console.log(`KARMA AI running on port ${PORT}`);
 });
