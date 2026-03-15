@@ -16,80 +16,46 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/api/health", (req, res) => {
-    res.json({
-        status: "online",
-        server: "KARMA",
-        time: new Date()
-    });
-});
-
+// Chat API
 app.post("/api/chat", async(req, res) => {
-
     try {
-
-        const { messages } = req.body;
-
-        const userMessage = messages[messages.length - 1].content;
+        const userMessage = req.body.message;
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-
             method: "POST",
-
             headers: {
                 "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 "Content-Type": "application/json"
             },
-
             body: JSON.stringify({
-
-                model: "meta-llama/llama-3-8b-instruct",
-
-                messages: [
-                    { role: "user", content: userMessage }
-                ]
-
+                model: "deepseek/deepseek-chat",
+                messages: [{
+                    role: "user",
+                    content: userMessage
+                }]
             })
-
         });
 
         const data = await response.json();
 
-        let reply = "No response";
-
-        if (data && data.choices && data.choices.length > 0) {
-
-            if (data.choices[0].message && data.choices[0].message.content) {
-                reply = data.choices[0].message.content;
-            } else if (data.choices[0].text) {
-                reply = data.choices[0].text;
-            }
-
-        }
-        res.json({ reply });
-
-    } catch (err) {
-
-        res.status(500).json({
-            error: err.message
+        res.json({
+            reply: data.choices[0].message.content
         });
 
+    } catch (error) {
+        console.error(error);
+        res.json({ reply: "AI server error" });
     }
-
 });
 
+// Load index.html
 app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 app.listen(PORT, () => {
-
-    console.log("=================================");
-    console.log(" KARMA AI SERVER RUNNING ");
-    console.log("=================================");
-    console.log("http://localhost:" + PORT);
-    console.log("=================================");
-
+    console.log("KARMA AI running on port " + PORT);
 });
