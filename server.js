@@ -20,65 +20,60 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.post("/api/chat", async (req, res) => {
-    try {
+  try {
 
-        // Get latest message from conversation array
-        const userMessage = req.body.messages?.slice(-1)[0]?.content || "";
+    const messages = req.body.messages || [];
 
-        if (!userMessage.trim()) {
-            return res.json({ reply: "Please type a message." });
-        }
-
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://karma-ai.onrender.com",
-                "X-Title": "KARMA AI Agent"
-            },
-            body: JSON.stringify({
-                model: "deepseek/deepseek-chat",
-                messages: [
-                    { role: "user", content: userMessage }
-                ]
-            })
-        });
-
-        const data = await response.json();
-
-        console.log("OpenRouter response:", data);
-
-        if (data.error) {
-            return res.json({
-                reply: "AI Error: " + data.error.message
-            });
-        }
-
-        if (!data.choices || data.choices.length === 0) {
-            return res.json({
-                reply: "No response from AI."
-            });
-        }
-
-        res.json({
-            reply: data.choices[0].message.content
-        });
-
-    } catch (error) {
-        console.error("Server error:", error);
-        res.json({
-            reply: "Server error while contacting AI."
-        });
+    if (!messages.length) {
+      return res.json({ reply: "No message received." });
     }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "deepseek/deepseek-chat",
+        messages: messages
+      })
+    });
+
+    const data = await response.json();
+
+    console.log("OpenRouter response:", data);
+
+    if (data.error) {
+      return res.json({
+        reply: "AI Error: " + data.error.message
+      });
+    }
+
+    if (!data.choices || !data.choices.length) {
+      return res.json({
+        reply: "No response from AI."
+      });
+    }
+
+    res.json({
+      reply: data.choices[0].message.content,
+      usage: data.usage || {}
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.json({
+      reply: "Server error contacting AI."
+    });
+  }
 });
 
-// Load website
+// fallback route
 app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Start server
 app.listen(PORT, () => {
-    console.log(`KARMA AI running on port ${PORT}`);
+  console.log(`KARMA AI running on port ${PORT}`);
 });
