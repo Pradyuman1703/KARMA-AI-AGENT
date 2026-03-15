@@ -19,10 +19,15 @@ app.use(express.json());
 // Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
-// AI chat route
 app.post("/api/chat", async (req, res) => {
     try {
-        const userMessage = req.body.message;
+
+        // Get latest message from conversation array
+        const userMessage = req.body.messages?.slice(-1)[0]?.content || "";
+
+        if (!userMessage.trim()) {
+            return res.json({ reply: "Please type a message." });
+        }
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -30,22 +35,18 @@ app.post("/api/chat", async (req, res) => {
                 "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://karma-ai.onrender.com",
-                "X-Title": "Karma AI Agent"
+                "X-Title": "KARMA AI Agent"
             },
             body: JSON.stringify({
                 model: "deepseek/deepseek-chat",
                 messages: [
-                    {
-                        role: "user",
-                        content: userMessage
-                    }
+                    { role: "user", content: userMessage }
                 ]
             })
         });
 
         const data = await response.json();
 
-        // Print full response in Render logs
         console.log("OpenRouter response:", data);
 
         if (data.error) {
@@ -56,7 +57,7 @@ app.post("/api/chat", async (req, res) => {
 
         if (!data.choices || data.choices.length === 0) {
             return res.json({
-                reply: "AI returned empty response."
+                reply: "No response from AI."
             });
         }
 
